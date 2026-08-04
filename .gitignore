@@ -1,0 +1,35 @@
+# ---- Node (result/, worker/) ----
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.npm/
+
+# ---- Python (vote/, temp/) ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- Entornos y credenciales ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# ---- Build / temporales ----
+dist/
+build/
+tmp/
+*.log
+
+k8s/legacy/
+temp/
