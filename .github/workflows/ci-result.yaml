@@ -1,0 +1,76 @@
+name: Result - Build and Push ECR Image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "result/**"  
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "result/**" 
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+     
+      - name: Checkout del codigo
+        uses: actions/checkout@v3
+      
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Login a Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }} ## Esto conecta a  325503636955.dkr.ecr.us-east-2.amazonaws.com/voting-app/result
+          ECR_REPOSITORY: voting-app/result
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./result
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Update GitOps Repository
+        # Solo actualizamos el repo de GitOps si la construcción en ECR fue exitosa
+        run: |
+          # 1. Clonar el repositorio de GitOps usando el token personal (PAT)
+          git clone https://x-access-token:${{ secrets.GITOPS_PAT }}@github.com/AgustinLandriel/gitops-voting-app.git
+          cd gitops-voting-app
+          
+          # 2. Configurar usuario de Git para el commit automático
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          
+          # 3. Reemplazar el tag de la imagen en el archivo YAML usando sed
+          sed -i "s|image: .*|image: ${{ steps.login-ecr.outputs.registry }}/voting-app/result:${{ github.sha }}|g" k8s/result/result.yaml
+          
+          # 4. Hacer commit y push del cambio
+          git add .
+          git commit -m "Update result image tag to ECR tag ${{ github.sha }}"
+          git push origin main
+
+
+# 1. El CI buildea la imagen y la pushea a Docker Hub con tag = a1b2c3d (el SHA)
+#       ↓
+# 2. Este comando sed actualiza el YAML: image: .../app-result:a1b2c3d
+#       ↓
+# 3. El CI pushea ese YAML cambiado al repo de manifiestos
+#       ↓
+# 4. ArgoCD detecta que el YAML cambió (el tag es distinto)
+#       ↓
+# 5. ArgoCD despliega la imagen a1b2c3d → el Pod nuevo corre el código recién buildeado
+
+
+# lo del ecr seria
+#   antes  image: agustindev/app-result:005934083724f58e2f126bf68376c04d6bd657bf
+#    despues del pushÑz image: 325503636955.dkr.ecr.us-east-2.amazonaws.com/voting-app/result:2023bc5032ceed478122b394e8079765139ff43d
