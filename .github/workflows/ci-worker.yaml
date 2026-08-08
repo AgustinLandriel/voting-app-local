@@ -19,6 +19,13 @@ concurrency:
   group: gitops-update
   cancel-in-progress: false
 
+# Visibles desde cualquier paso. El contexto github ya existe cuando esto se
+# evalua; las salidas de un step (login-ecr) todavia no, por eso ECR_REGISTRY
+# se declara mas abajo, en cada paso que la necesita.
+env:
+  ECR_REPOSITORY: voting-app/worker
+  IMAGE_TAG: ${{ github.sha }}
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -32,7 +39,7 @@ jobs:
       # Si esto falla, el PR no se puede aprobar.
       # ─────────────────────────────────────────────────────────
       - name: Build de la imagen
-        run: docker build -t worker:${{ github.sha }} ./worker
+        run: docker build -t worker:$IMAGE_TAG ./worker
 
       # ─────────────────────────────────────────────────────────
       # De aca para abajo, solo cuando el codigo ya esta en main.
@@ -56,27 +63,34 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: voting-app/worker
-          IMAGE_TAG: ${{ github.sha }}
         run: |
           docker tag worker:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
+      - name: Instalar Kustomize
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          curl -sL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
       - name: Update GitOps Repository
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           # 1. Clonar el repo de GitOps con el token personal (PAT)
           git clone https://x-access-token:${{ secrets.GITOPS_PAT }}@github.com/AgustinLandriel/voting-app-argocd.git
-          cd voting-app-argocd
+          cd voting-app-argocd/k8s/worker
 
           # 2. Identidad para el commit automatico
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
-          # 3. Actualizar el tag de la imagen
-          sed -i "s|image: .*|image: ${{ steps.login-ecr.outputs.registry }}/voting-app/worker:${{ github.sha }}|g" k8s/worker/worker.yaml
+          # 3. Actualizar el tag en kustomization.yaml. A diferencia de sed,
+          #    Kustomize entiende el YAML: toca solo esta imagen y ninguna otra.
+          kustomize edit set image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
           # 4. Commit y push. ArgoCD detecta el cambio y despliega.
           git add .
-          git commit -m "Update worker image tag to ${{ github.sha }}"
+          git commit -m "Update worker image tag to $IMAGE_TAG"
           git push origin main
