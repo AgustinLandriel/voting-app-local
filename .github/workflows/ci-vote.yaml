@@ -1,6 +1,7 @@
 name: vote - Build and Push ECR Image
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -34,6 +35,27 @@ jobs:
       - name: Checkout del codigo
         uses: actions/checkout@v4
 
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # requirements.txt sólo lista las 9 deps directas, no el arbol completo.
+      # Instalandolas, Snyk ve tambien las transitivas.
+      - name: Instalar dependencias
+        working-directory: ./vote
+        run: pip install -r requirements.txt
+
+      - name: Instalar Snyk CLI
+        uses: snyk/actions/setup@master
+
+      - name: Escanear dependencias con Snyk
+        continue-on-error: true
+        working-directory: ./vote
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk test --severity-threshold=high
       # ─────────────────────────────────────────────────────────
       # Corre SIEMPRE: en el PR y en el merge.
       # Si esto falla, el PR no se puede aprobar.

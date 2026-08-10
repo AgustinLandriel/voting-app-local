@@ -1,6 +1,7 @@
 name: result - Build and Push ECR Image
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -33,7 +34,20 @@ jobs:
 
       - name: Checkout del codigo
         uses: actions/checkout@v4
+      
+      - name: Instalar Snyk CLI
+        uses: snyk/actions/setup@master
 
+      # SCA: revisa el arbol de dependencias ANTES de meterlo en la imagen.
+      # Lee el package-lock.json directo, no hace falta npm install.
+      # continue-on-error: reporta pero no bloquea, igual que Trivy.
+      - name: Escanear dependencias con Snyk
+        continue-on-error: true
+        working-directory: ./result
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk test --severity-threshold=high
+      
       # ─────────────────────────────────────────────────────────
       # Corre SIEMPRE: en el PR y en el merge.
       # Si esto falla, el PR no se puede aprobar.
