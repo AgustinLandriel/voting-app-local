@@ -1,0 +1,27 @@
+# Control de versiones
+.git
+.gitignore
+.github/
+
+# Dependencias instaladas (las resuelve npm ci dentro de la imagen)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Archivos de entorno local y secretos (¡Seguridad!)
+.env
+.env.local
+secrets.json
+
+# Herramientas de desarrollo o testing
+tests/
+coverage/
+.eslintrc*
+.nvmrc
+
+# Documentacion
+readme.md
+
+# Archivos propios de Docker (opcional, pero buena práctica)
+Dockerfile
+.dockerignore
