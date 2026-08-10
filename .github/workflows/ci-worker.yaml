@@ -47,6 +47,20 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: snyk test --severity-threshold=high
+
+      # snyk test (arriba) solo reporta en el log; no publica nada.
+      # snyk monitor sube la foto del arbol a app.snyk.io y avisa cuando
+      # se descubre una CVE nueva en algo que ya tenemos instalado, sin
+      # necesidad de correr un build.
+      # Solo en main: en los PR ensuciaria el dashboard con una rama por PR.
+      - name: Publicar dependencias en Snyk
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        working-directory: ./worker
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk monitor
+
       # ─────────────────────────────────────────────────────────
       # Corre SIEMPRE: en el PR y en el merge.
       # Si esto falla, el PR no se puede aprobar.
