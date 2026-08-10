@@ -1,0 +1,39 @@
+name: SAST - SonarQube Cloud
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Ojo: NO lleva el concurrency group "gitops-update". Ese existe para que
+# los 3 pipelines no choquen al pushear al repo de GitOps. Sonar no toca
+# GitOps, asi que meterlo ahi solo lo pondria a hacer cola al pedo.
+
+jobs:
+  sonar:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Sin esto, si el scan de vote falla, GitHub cancela los de worker y
+      # result y te quedas sin esos dos reportes. Los queres los tres.
+      fail-fast: false
+      matrix:
+        app: [vote, worker, result]
+
+    steps:
+      - name: Checkout del codigo
+        uses: actions/checkout@v4
+        with:
+          # Sonar usa el git blame para decidir que es "codigo nuevo".
+          # Con clone shallow el analisis de New Code sale mal.
+          fetch-depth: 0
+
+      - name: Analisis SAST de ${{ matrix.app }}
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: ./${{ matrix.app }}
