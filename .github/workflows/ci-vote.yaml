@@ -16,7 +16,7 @@ on:
 # Sin esto, dos que corran a la vez chocan en el git push y uno falla.
 # El grupo compartido los pone en fila en vez de cancelarlos.
 concurrency:
-  group: gitops-update
+  group: gitops-update-${{ github.workflow}}
   cancel-in-progress: false
 
 # Visibles desde cualquier paso. El contexto github ya existe cuando esto se
