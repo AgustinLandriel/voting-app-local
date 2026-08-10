@@ -41,6 +41,18 @@ jobs:
       - name: Build de la imagen
         run: docker build -t vote:$IMAGE_TAG ./vote
 
+      # Escanea la imagen ANTES de subirla: si algo critico aparece, nunca
+      # llega a ECR. Corre tambien en los PR, que es donde conviene enterarse.
+      # Con exit-code 0 solo reporta; poner 1 para que bloquee de verdad.
+      - name: Escanear la imagen con Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: vote:${{ env.IMAGE_TAG }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 0
+
       # ─────────────────────────────────────────────────────────
       # De aca para abajo, solo cuando el codigo ya esta en main.
       # En un PR estos pasos ni se ejecutan, asi que tampoco se
