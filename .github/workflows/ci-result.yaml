@@ -96,7 +96,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::325503636955:role/gha-voting-app-local-ecr
           aws-region: us-east-2
-
+          
       - name: Login a Amazon ECR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         id: login-ecr
