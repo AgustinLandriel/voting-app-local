@@ -29,7 +29,7 @@ env:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: arc-voting-app-local
     steps:
 
       - name: Checkout del codigo
