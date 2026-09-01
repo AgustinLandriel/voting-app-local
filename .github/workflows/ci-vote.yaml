@@ -121,14 +121,15 @@ jobs:
         run: |
           # 1. Clonar el repo de GitOps con el token personal (PAT)
           git clone https://x-access-token:${{ secrets.GITOPS_PAT }}@github.com/AgustinLandriel/voting-app-argocd.git
-          cd voting-app-argocd
+          cd voting-app-argocd/k8s/vote
 
           # 2. Identidad para el commit automatico
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
           # 3. Actualizar el tag de la imagen
-          sed -i "s|image: .*|image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|g" k8s/vote/vote.yaml
+            kustomize edit set image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
 
           # 4. Commit y push. ArgoCD detecta el cambio y despliega.
           git add .
