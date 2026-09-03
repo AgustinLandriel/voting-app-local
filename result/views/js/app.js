@@ -1,135 +1,98 @@
-        var app = angular.module('catsvsdogs', []);
-        var socket = io.connect();
+// Urna · resultados en vivo
+// Sin framework: escucha el evento "scores" que emite main.js por socket.io.
 
-        var bg1 = document.getElementById('background-stats-1');
-        var bg2 = document.getElementById('background-stats-2');
+(function () {
+  "use strict";
 
-        app.controller('statsCtrl', function($scope) {
-            $scope.aPercent = 50;
-            $scope.bPercent = 50;
-            $scope.total = 0;
+  var el = function (id) { return document.getElementById(id); };
 
-            var updateScores = function() {
-                socket.on('scores', function(json) {
-                    try {
-                        var data = JSON.parse(json);
-                        var a = parseInt(data.a || 0);
-                        var b = parseInt(data.b || 0);
+  var history = [];      // ventaja de la opcion A, en porcentaje
+  var HISTORY_MAX = 28;
 
-                        var percentages = getPercentages(a, b);
+  function stamp() {
+    var d = new Date();
+    return String(d.getHours()).padStart(2, "0") + ":" +
+           String(d.getMinutes()).padStart(2, "0") + ":" +
+           String(d.getSeconds()).padStart(2, "0");
+  }
 
-                        // Actualizar barras de fondo con animación
-                        bg1.style.width = percentages.a + "%";
-                        bg2.style.width = percentages.b + "%";
+  function paint(a, b) {
+    var total = a + b;
+    var pa = total ? (a / total * 100) : 50;
+    var pb = 100 - pa;
 
-                        // Actualizar scope con animación
-                        $scope.$apply(function() {
-                            $scope.aPercent = percentages.a;
-                            $scope.bPercent = percentages.b;
-                            $scope.total = a + b;
-                        });
+    el("pc-a").textContent = pa.toFixed(1);
+    el("pc-b").textContent = pb.toFixed(1);
+    el("ct-a").textContent = a;
+    el("ct-b").textContent = b;
+    el("total").textContent = total.toLocaleString("es-AR");
 
-                        // Efectos visuales adicionales
-                        addVoteEffect();
-                    } catch (error) {
-                        console.error('Error parsing scores:', error);
-                    }
-                });
-            };
+    el("bg-a").style.width = pa + "%";
+    el("bg-b").style.width = pb + "%";
+    el("bar-a").style.width = pa + "%";
+    el("bar-b").style.width = pb + "%";
 
-            var addVoteEffect = function() {
-                // Agregar clase de animación temporal
-                const voteCounter = document.querySelector('.vote-count');
-                if (voteCounter) {
-                    voteCounter.style.animation = 'none';
-                    setTimeout(() => {
-                        voteCounter.style.animation = 'countUp 0.5s ease';
-                    }, 10);
-                }
-            };
+    el("side-a").classList.toggle("lead", a > b);
+    el("side-b").classList.toggle("lead", b > a);
 
-            var init = function() {
-                document.body.classList.add('loaded');
-                updateScores();
-                
-                // Conectar eventos de socket
-                socket.on('connect', function() {
-                    console.log('Connected to server');
-                });
+    el("empty").classList.toggle("on", total === 0);
+    el("lastup").textContent = stamp();
 
-                socket.on('disconnect', function() {
-                    console.log('Disconnected from server');
-                });
-            };
+    history.push(pa);
+    if (history.length > HISTORY_MAX) history.shift();
+    drawSpark();
+  }
 
-            // Inicializar cuando se reciba el primer mensaje
-            socket.on('message', function(data) {
-                init();
-            });
+  function drawSpark() {
+    var svg = el("spark");
+    if (!svg || history.length < 2) return;
 
-            // Inicializar inmediatamente también
-            init();
-        });
+    var lo = 30, hi = 70, W = 200, H = 40;
+    var pts = history.map(function (v, i) {
+      var x = i / (history.length - 1) * W;
+      var y = H - (v - lo) / (hi - lo) * H;
+      return [x, Math.max(2, Math.min(H - 2, y))];
+    });
 
-        function getPercentages(a, b) {
-            var result = {};
+    var line = pts.map(function (p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join(" ");
+    var area = "0," + H + " " + line + " " + W + "," + H;
+    var last = pts[pts.length - 1];
+    var color = history[history.length - 1] >= 50 ? "var(--a)" : "var(--b)";
 
-            if (a + b > 0) {
-                result.a = Math.round(a / (a + b) * 100);
-                result.b = 100 - result.a;
-            } else {
-                result.a = result.b = 50;
-            }
+    svg.innerHTML =
+      '<polyline points="' + area + '" fill="' + color + '" opacity="0.12"></polyline>' +
+      '<line x1="0" y1="' + (H / 2) + '" x2="' + W + '" y2="' + (H / 2) +
+        '" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 3"></line>' +
+      '<polyline points="' + line + '" fill="none" stroke="' + color +
+        '" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline>' +
+      '<circle cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) +
+        '" r="2.6" fill="' + color + '"></circle>';
+  }
 
-            return result;
-        }
+  function setSocketState(ok, text) {
+    el("d-socket").classList.toggle("down", !ok);
+    el("s-socket").textContent = text;
+  }
 
-        // Efectos adicionales de partículas cuando cambian los votos
-        function createVoteParticle(type) {
-            const particle = document.createElement('div');
-            particle.style.position = 'fixed';
-            particle.style.fontSize = '2rem';
-            particle.style.pointerEvents = 'none';
-            particle.style.zIndex = '9999';
-            particle.innerHTML = type === 'cat' ? '🐱' : '🐶';
-            
-            const startX = Math.random() * window.innerWidth;
-            particle.style.left = startX + 'px';
-            particle.style.top = '0px';
-            
-            document.body.appendChild(particle);
-            
-            let position = 0;
-            const animation = setInterval(() => {
-                position += 5;
-                particle.style.top = position + 'px';
-                particle.style.opacity = 1 - (position / window.innerHeight);
-                
-                if (position > window.innerHeight) {
-                    clearInterval(animation);
-                    particle.remove();
-                }
-            }, 20);
-        }
+  // ---- socket.io ----
+  var socket = io.connect();
 
-        // Agregar efectos de sonido (opcional)
-        function playVoteSound() {
-            // Solo reproducir si el usuario ha interactuado con la página
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.value = 800;
-                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.1);
-            } catch (error) {
-                // Ignorar errores de audio
-            }
-        }
+  socket.on("connect", function () {
+    setSocketState(true, "conectado");
+  });
+
+  socket.on("disconnect", function () {
+    setSocketState(false, "desconectado");
+  });
+
+  socket.on("scores", function (json) {
+    try {
+      var data = JSON.parse(json);
+      paint(parseInt(data.a || 0, 10), parseInt(data.b || 0, 10));
+    } catch (err) {
+      console.error("No se pudo interpretar el mensaje de scores:", err);
+    }
+  });
+
+  paint(0, 0);
+})();

@@ -1,135 +1,75 @@
-<!DOCTYPE html>
-<html ng-app="catsvsdogs">
-<head>
-    <meta charset="utf-8">
-    <title>🐱 vs 🐶 Resultados en Tiempo Real</title>
-    <base href="/index.html">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="keywords" content="devops, docker, stack, voting, results">
-    <meta name="author" content="RoxsRoss">
-    
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="stylesheets/style.css">
+<!doctype html>
+<html lang="es">
 
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Urna · Resultados</title>
+  <base href="/index.html">
+
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="stylesheets/style.css">
 </head>
 
-<body ng-controller="statsCtrl">
-    <!-- Partículas de fondo -->
-    <div class="particles">
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
+<body>
+  <main class="card">
+
+    <div class="status">
+      <span><span class="dot pulse" id="d-socket"></span><b>socket.io</b> <span id="s-socket">conectando…</span></span>
+      <span class="sep">·</span>
+      <span>última actualización <b id="lastup">—</b></span>
     </div>
 
-    <!-- Barras de fondo -->
-    <div id="background-stats">
-        <div id="background-stats-1">
-            <div class="stats-overlay"></div>
+    <div class="res">
+      <div class="res-bg">
+        <i class="ba" id="bg-a" style="width:50%"></i>
+        <i class="bb" id="bg-b" style="width:50%"></i>
+      </div>
+
+      <div class="res-inner">
+
+        <div class="h2h">
+          <div class="side a" id="side-a">
+            <span class="nm" id="nm-a">Gatos</span>
+            <span class="pc" id="pc-a">50.0</span>
+            <span class="ct"><span id="ct-a">0</span> votos</span>
+            <span class="lead-chip">En cabeza</span>
+          </div>
+          <div class="mid">EN VIVO</div>
+          <div class="side b" id="side-b">
+            <span class="nm" id="nm-b">Perros</span>
+            <span class="pc" id="pc-b">50.0</span>
+            <span class="ct"><span id="ct-b">0</span> votos</span>
+            <span class="lead-chip">En cabeza</span>
+          </div>
         </div>
-        <div id="background-stats-2">
-            <div class="stats-overlay"></div>
+
+        <div class="res-bar">
+          <i class="ba" id="bar-a" style="width:50%"></i>
+          <i class="bb" id="bar-b" style="width:50%"></i>
         </div>
+
+        <div class="res-meta">
+          <div class="res-total">
+            <span class="l">Total emitido</span>
+            <span class="n" id="total">0</span>
+          </div>
+          <div class="spark">
+            <span class="l">Ventaja de <span id="nm-a2">Gatos</span> · últimas lecturas</span>
+            <svg id="spark" viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true"></svg>
+          </div>
+        </div>
+
+      </div>
     </div>
 
-    <!-- Indicador de estado en vivo -->
-    <div class="status-indicator live">
-        <div class="status-text">RoxsRoss Voting</div>
-        <div class="live-indicator">
-            <div class="live-dot"></div>
-            EN VIVO
-        </div>
-    </div>
+    <div class="empty" id="empty">Esperando el primer voto…</div>
 
-    <!-- Contenido principal -->
-    <div id="content-container">
-        <div id="content-container-center">
-            <!-- Header -->
-            <div class="header">
-                <h1><i class="fas fa-trophy"></i> Ranking de Preferencias</h1>
-                <p>¿Gatos o perros? Los resultados hablan por sí solos</p>
-            </div>
+  </main>
 
-            <!-- Contenedor de resultados -->
-            <div class="results-container">
-                <!-- Display de batalla -->
-                <div class="battle-display">
-                    <!-- Gatos -->
-                    <div class="competitor cats" ng-class="{'winner': aPercent > bPercent && total > 0}">
-                        <div class="competitor-icon">
-                            <i class="fas fa-cat"></i>
-                        </div>
-                        <div class="competitor-name">Gatos</div>
-                        <div class="competitor-percentage">{{aPercent | number:1}}%</div>
-                    </div>
-
-                    <!-- VS Divider -->
-                    <div class="vs-divider">
-                        <div class="vs-text">VS</div>
-                        <div class="divider-line"></div>
-                    </div>
-
-                    <!-- Perros -->
-                    <div class="competitor dogs" ng-class="{'winner': bPercent > aPercent && total > 0}">
-                        <div class="competitor-icon">
-                            <i class="fas fa-dog"></i>
-                        </div>
-                        <div class="competitor-name">Perros</div>
-                        <div class="competitor-percentage">{{bPercent | number:1}}%</div>
-                    </div>
-                </div>
-
-                <!-- Barras de progreso -->
-                <div class="progress-container">
-                    <div class="progress-bar cats">
-                        <div class="progress-fill" style="width: {{aPercent}}%"></div>
-                    </div>
-                    <div class="progress-bar dogs">
-                        <div class="progress-fill" style="width: {{bPercent}}%"></div>
-                    </div>
-                </div>
-
-                <!-- Contador de votos -->
-                <div class="vote-counter">
-                    <h3><i class="fas fa-vote-yea"></i> Total de Votos</h3>
-                    <div class="vote-count">
-                        <span ng-if="total == 0">¡Esperando votos!</span>
-                        <span ng-if="total == 1">{{total}} voto</span>
-                        <span ng-if="total >= 2">{{total}} votos</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-content">
-            <div class="footer-brand">
-                <i class="fas fa-code"></i>
-                <span>2025 by <strong>RoxsRoss</strong></span>
-            </div>
-            <div class="footer-links">
-                <span class="footer-tech">
-                    <i class="fab fa-docker"></i> Docker
-                    <i class="fab fa-python"></i> Flask
-                    <i class="fab fa-node-js"></i> Node.js
-                    <i class="fab fa-angular"></i> Angular
-                </span>
-            </div>
-        </div>
-    </footer>
-
-    <!-- Scripts -->
-    <script src="js/socket.io.js"></script>
-    <script src="js/angular.min.js"></script>
-    <script src="js/app.js"></script>
+  <script src="js/socket.io.js"></script>
+  <script src="js/app.js"></script>
 </body>
+
 </html>
