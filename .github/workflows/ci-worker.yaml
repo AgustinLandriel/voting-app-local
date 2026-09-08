@@ -20,6 +20,10 @@ concurrency:
   group: gitops-update-${{ github.workflow}}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  id-token: write
+
 # Visibles desde cualquier paso. El contexto github ya existe cuando esto se
 # evalua; las salidas de un step (login-ecr) todavia no, por eso ECR_REGISTRY
 # se declara mas abajo, en cada paso que la necesita.
